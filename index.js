@@ -2,13 +2,20 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cookieParser = require("cookie-parser");
 const port = process.env.PORT || 5000;
 const app = express();
 
-app.use(cors());
+const corsOptions = {
+  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  credentials: true,
+  optionSuccessStatus: 200,
+}
+
+app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.j6yhdqz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -27,6 +34,8 @@ async function run() {
     await client.connect();
 
     const usersCollection = client.db("scholarDB").collection("users");
+    const scholarshipsCollection = client.db("scholarDB").collection("scholarships");
+    const reviewsCollection = client.db("scholarDB").collection("reviews");
 
     // jwt generate
     app.post("/jwt", async (req, res) => {
@@ -56,7 +65,7 @@ async function run() {
     });
 
     //save user
-    app.put("/users", async (req, res) => {
+    app.post("/users", async (req, res) => {
         const user = req.body;
       const email = user.email;
       const query = { email: email };
@@ -64,14 +73,8 @@ async function run() {
       const isExist = await usersCollection.findOne(query);
       if (isExist) return res.send(isExist);
 
-      const options = {upsert: true};
-      const updateDoc = {
-        $set: {
-            ...user
-        }
-      }
-      const result = await usersCollection.updateOne(query,updateDoc, options);
-      res.send(result);
+        const result = await usersCollection.insertOne(user);
+        res.send(result);
     });
 
     //get all user
@@ -95,9 +98,31 @@ async function run() {
     })
 
 
+    //get all scholarships
+    app.get("/scholarships", async (req, res) => {
+        const result = await scholarshipsCollection.find().toArray();
+        res.send(result);
+    })
 
+    //get scholarship by id
+    app.get('/scholarship-details/:id', async (req,res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await scholarshipsCollection.findOne(query);
+      res.send(result);
+    })
 
+    //save review
+    app.post('/review', async (req, res) => {
+      const review = req.body;
+      const result = await reviewsCollection.insertOne(review);
+      res.send(result);
+    })
 
+    app.get('/review', async (req, res) => {
+      const result = await reviewsCollection.find().toArray();
+      res.send(result);
+    })
 
 
 

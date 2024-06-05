@@ -97,6 +97,19 @@ async function run() {
         return res.send("User not found")
     })
 
+    //get top scholarship
+    app.get("/top-scholarships", async (req, res) => {
+      const result = await scholarshipsCollection.aggregate([
+        {
+          $sort: {
+            "applicationFees": 1,
+            "postDate": -1
+          }
+        }
+      ]).toArray();
+      res.send(result);
+    })
+
 
     //get all scholarships
     app.get("/scholarships", async (req, res) => {
@@ -113,13 +126,13 @@ async function run() {
     })
 
     //save review
-    app.post('/review', async (req, res) => {
+    app.post('/reviews', async (req, res) => {
       const review = req.body;
       const result = await reviewsCollection.insertOne(review);
       res.send(result);
     })
 
-    app.get('/review', async (req, res) => {
+    app.get('/reviews', async (req, res) => {
       const result = await reviewsCollection.find().toArray();
       res.send(result);
     })

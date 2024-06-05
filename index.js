@@ -8,10 +8,10 @@ const port = process.env.PORT || 5000;
 const app = express();
 
 const corsOptions = {
-  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  origin: ["http://localhost:5173", "http://localhost:5174"],
   credentials: true,
   optionSuccessStatus: 200,
-}
+};
 
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -34,7 +34,9 @@ async function run() {
     await client.connect();
 
     const usersCollection = client.db("scholarDB").collection("users");
-    const scholarshipsCollection = client.db("scholarDB").collection("scholarships");
+    const scholarshipsCollection = client
+      .db("scholarDB")
+      .collection("scholarships");
     const reviewsCollection = client.db("scholarDB").collection("reviews");
 
     // jwt generate
@@ -66,15 +68,15 @@ async function run() {
 
     //save user
     app.post("/users", async (req, res) => {
-        const user = req.body;
+      const user = req.body;
       const email = user.email;
       const query = { email: email };
       //check if user already exists in db
       const isExist = await usersCollection.findOne(query);
       if (isExist) return res.send(isExist);
 
-        const result = await usersCollection.insertOne(user);
-        res.send(result);
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
     });
 
     //get all user
@@ -84,60 +86,74 @@ async function run() {
     });
 
     //email and password check
-    app.post('/user-validation', async (req, res) => {
-        const {email, password} = req.body;
-        // const password = req.body.password;
-        const queryEmail = {email:email};
-        const emailExists = await usersCollection.findOne(queryEmail);
-        if(emailExists){
-            if(emailExists.password !== password){
-                return res.send("Password is incorrect")
-            }
+    app.post("/user-validation", async (req, res) => {
+      const { email, password } = req.body;
+      // const password = req.body.password;
+      const queryEmail = { email: email };
+      const emailExists = await usersCollection.findOne(queryEmail);
+      if (emailExists) {
+        if (emailExists.password !== password) {
+          return res.send("Password is incorrect");
         }
-        return res.send("User not found")
-    })
+      }
+      return res.send("User not found");
+    });
 
     //get top scholarship
     app.get("/top-scholarships", async (req, res) => {
-      const result = await scholarshipsCollection.aggregate([
-        {
-          $sort: {
-            "applicationFees": 1,
-            "postDate": -1
-          }
-        }
-      ]).toArray();
+      const result = await scholarshipsCollection
+        .aggregate([
+          {
+            $sort: {
+              applicationFees: 1,
+              postDate: -1,
+            },
+          },
+        ])
+        .toArray();
       res.send(result);
-    })
-
+    });
 
     //get all scholarships
     app.get("/scholarships", async (req, res) => {
-        const result = await scholarshipsCollection.find().toArray();
-        res.send(result);
-    })
+      const result = await scholarshipsCollection.find().toArray();
+      res.send(result);
+    });
 
     //get scholarship by id
-    app.get('/scholarship-details/:id', async (req,res) => {
+    app.get("/scholarship-details/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const result = await scholarshipsCollection.findOne(query);
       res.send(result);
-    })
+    });
+
+    //get scholarship by search
+    app.get("/scholarship-search/:text", async (req, res) => {
+      const searchText = req.params.text;
+      const finalText = new RegExp(searchText, "i");
+      const query = {
+        "$or": [
+          {"universityName": finalText},
+          {"subjectCategory": finalText},
+          {"subjectName": finalText}
+        ],
+      };
+      const result = await scholarshipsCollection.find(query).toArray();
+      res.send(result);
+    });
 
     //save review
-    app.post('/reviews', async (req, res) => {
+    app.post("/reviews", async (req, res) => {
       const review = req.body;
       const result = await reviewsCollection.insertOne(review);
       res.send(result);
-    })
+    });
 
-    app.get('/reviews', async (req, res) => {
+    app.get("/reviews", async (req, res) => {
       const result = await reviewsCollection.find().toArray();
       res.send(result);
-    })
-
-
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

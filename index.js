@@ -71,9 +71,9 @@ async function run() {
       const user = req.body;
       const email = user.email;
       const query = { email: email };
-      //check if user already exists in db
+      // check if user already exists in db
       const isExist = await usersCollection.findOne(query);
-      if (isExist) return res.send(isExist);
+      if (isExist) return res.send("user already exists");
 
       const result = await usersCollection.insertOne(user);
       res.send(result);
@@ -85,19 +85,27 @@ async function run() {
       res.send(result);
     });
 
+    //get all users with email
+    app.get("/users-role/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await usersCollection.findOne(query);
+      res.send(result);
+    })
+
     //email and password check
-    app.post("/user-validation", async (req, res) => {
-      const { email, password } = req.body;
-      // const password = req.body.password;
-      const queryEmail = { email: email };
-      const emailExists = await usersCollection.findOne(queryEmail);
-      if (emailExists) {
-        if (emailExists.password !== password) {
-          return res.send("Password is incorrect");
-        }
-      }
-      return res.send("User not found");
-    });
+    // app.post("/user-validation", async (req, res) => {
+    //   const { email, password } = req.body;
+    //   // const password = req.body.password;
+    //   const queryEmail = { email: email };
+    //   const emailExists = await usersCollection.findOne(queryEmail);
+    //   if (emailExists) {
+    //     if (emailExists.password !== password) {
+    //       return res.send("Password is incorrect");
+    //     }
+    //   }
+    //   return res.send("User not found");
+    // });
 
     //get top scholarship
     app.get("/top-scholarships", async (req, res) => {

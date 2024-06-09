@@ -1,11 +1,12 @@
 const express = require("express");
-const cors = require("cors");
-const jwt = require("jsonwebtoken");
-require("dotenv").config();
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const cookieParser = require("cookie-parser");
-const port = process.env.PORT || 5000;
 const app = express();
+require("dotenv").config();
+const cors = require("cors");
+const cookieParser = require("cookie-parser");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const jwt = require("jsonwebtoken");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const port = process.env.PORT || 5000;
 
 const corsOptions = {
   origin: ["http://localhost:5173", "http://localhost:5174"],
@@ -16,6 +17,24 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
+
+// Verify Token Middleware
+const verifyToken = async (req, res, next) => {
+  const token = req.cookies?.token;
+  console.log(token);
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      console.log(err);
+      return res.status(401).send({ message: "unauthorized access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
+
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.j6yhdqz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -39,7 +58,7 @@ async function run() {
       .collection("scholarships");
     const reviewsCollection = client.db("scholarDB").collection("reviews");
 
-    // jwt generate
+    // auth related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
@@ -53,17 +72,38 @@ async function run() {
         })
         .send({ success: true });
     });
+    // Logout
+    app.get("/logout", async (req, res) => {
+      try {
+        res
+          .clearCookie("token", {
+            maxAge: 0,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+          })
+          .send({ success: true });
+        console.log("Logout successful");
+      } catch (err) {
+        res.status(500).send(err);
+      }
+    });
 
-    //clear token on logout
-    app.get("/logout", (req, res) => {
-      res
-        .clearCookie("token", {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-          maxAge: 0,
-        })
-        .send({ success: true });
+    ///create-payment-intent
+    app.post("/create-payment-intent", async (req, res) => {
+      const fees = req.body.fees;
+      const feesInCent = parseFloat(fees) * 100;
+      if(!fees || feesInCent < 1) return;
+
+      const {client_secret} = await stripe.paymentIntents.create({
+        amount: feesInCent,
+        currency: "usd",
+        // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
+
+      res.send({clientSecret: client_secret});
     });
 
     //save user
@@ -91,21 +131,9 @@ async function run() {
       const query = { email: email };
       const result = await usersCollection.findOne(query);
       res.send(result);
-    })
+    });
 
-    //email and password check
-    // app.post("/user-validation", async (req, res) => {
-    //   const { email, password } = req.body;
-    //   // const password = req.body.password;
-    //   const queryEmail = { email: email };
-    //   const emailExists = await usersCollection.findOne(queryEmail);
-    //   if (emailExists) {
-    //     if (emailExists.password !== password) {
-    //       return res.send("Password is incorrect");
-    //     }
-    //   }
-    //   return res.send("User not found");
-    // });
+    
 
     //get top scholarship
     app.get("/top-scholarships", async (req, res) => {
@@ -141,10 +169,10 @@ async function run() {
       const searchText = req.params.text;
       const finalText = new RegExp(searchText, "i");
       const query = {
-        "$or": [
-          {"universityName": finalText},
-          {"subjectCategory": finalText},
-          {"subjectName": finalText}
+        $or: [
+          { universityName: finalText },
+          { subjectCategory: finalText },
+          { subjectName: finalText },
         ],
       };
       const result = await scholarshipsCollection.find(query).toArray();

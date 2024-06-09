@@ -35,7 +35,6 @@ const verifyToken = async (req, res, next) => {
   });
 };
 
-
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.j6yhdqz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -57,6 +56,9 @@ async function run() {
       .db("scholarDB")
       .collection("scholarships");
     const reviewsCollection = client.db("scholarDB").collection("reviews");
+    const appliedScholarshipCollection = client
+      .db("scholarDB")
+      .collection("appliedScholarships");
 
     // auth related api
     app.post("/jwt", async (req, res) => {
@@ -92,9 +94,9 @@ async function run() {
     app.post("/create-payment-intent", async (req, res) => {
       const fees = req.body.fees;
       const feesInCent = parseFloat(fees) * 100;
-      if(!fees || feesInCent < 1) return;
+      if (!fees || feesInCent < 1) return;
 
-      const {client_secret} = await stripe.paymentIntents.create({
+      const { client_secret } = await stripe.paymentIntents.create({
         amount: feesInCent,
         currency: "usd",
         // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
@@ -103,7 +105,7 @@ async function run() {
         },
       });
 
-      res.send({clientSecret: client_secret});
+      res.send({ clientSecret: client_secret });
     });
 
     //save user
@@ -132,8 +134,6 @@ async function run() {
       const result = await usersCollection.findOne(query);
       res.send(result);
     });
-
-    
 
     //get top scholarship
     app.get("/top-scholarships", async (req, res) => {
@@ -176,6 +176,13 @@ async function run() {
         ],
       };
       const result = await scholarshipsCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    //save applied scholarship
+    app.post("/applied-scholarships", async (req, res) => {
+      const appliedInfo = req.body;
+      const result = await appliedScholarshipCollection.insertOne(appliedInfo);
       res.send(result);
     });
 

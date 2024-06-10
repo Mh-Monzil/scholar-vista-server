@@ -186,6 +186,32 @@ async function run() {
       res.send(result);
     });
 
+    //get applied scholarships
+    app.get("/applied-scholarships", async (req, res) => {
+      const result = await appliedScholarshipCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get("/applied-scholarships/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await appliedScholarshipCollection.findOne(query);
+      res.send(result);
+    });
+
+    //update applied Scholarship 
+    app.patch("/applied-scholarships", async (req, res) => {
+      const editedInfo = req.body;
+      const query = {scholarship_id: editedInfo.scholarship_id};
+      const updateDoc = {
+        $set: {
+          ...editedInfo
+        }
+      }
+      const result = await appliedScholarshipCollection.updateOne(query, updateDoc);
+      res.send(result);
+    })
+
     //save review
     app.post("/reviews", async (req, res) => {
       const review = req.body;

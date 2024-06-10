@@ -236,17 +236,13 @@ async function run() {
       res.send(result);
     });
 
-    // get review by id
-    // app.get("/reviews/:id", async (req, res) => {
-    //   const id = req.params.id;
-    //   if (!id) {
-    //     return;
-    //   }
-    //   console.log(id, "review id");
-      // const query = {_id: new ObjectId(id)};
-      // const result = await reviewsCollection.findOne(query)
-      // res.send(result);
-    // });
+    //get review by id
+    app.get("/reviews/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { university_id: id};
+      const result = await reviewsCollection.find(query).toArray();
+      res.send(result);
+    })
 
     //update review
     app.patch("/update-reviews/:id", async (req, res) => {

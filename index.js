@@ -199,18 +199,29 @@ async function run() {
       res.send(result);
     });
 
-    //update applied Scholarship 
+    //update applied Scholarship
     app.patch("/applied-scholarships", async (req, res) => {
       const editedInfo = req.body;
-      const query = {scholarship_id: editedInfo.scholarship_id};
+      const query = { scholarship_id: editedInfo.scholarship_id };
       const updateDoc = {
         $set: {
-          ...editedInfo
-        }
-      }
-      const result = await appliedScholarshipCollection.updateOne(query, updateDoc);
+          ...editedInfo,
+        },
+      };
+      const result = await appliedScholarshipCollection.updateOne(
+        query,
+        updateDoc
+      );
       res.send(result);
-    })
+    });
+
+    // delete applied scholarship
+    app.delete("/applied-scholarship/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await appliedScholarshipCollection.deleteOne(query);
+      res.send(result);
+    });
 
     //save review
     app.post("/reviews", async (req, res) => {
@@ -219,10 +230,43 @@ async function run() {
       res.send(result);
     });
 
+    //get all reviews
     app.get("/reviews", async (req, res) => {
       const result = await reviewsCollection.find().toArray();
       res.send(result);
     });
+
+    // get review by id
+    // app.get("/reviews/:id", async (req, res) => {
+    //   const id = req.params.id;
+    //   if (!id) {
+    //     return;
+    //   }
+    //   console.log(id, "review id");
+      // const query = {_id: new ObjectId(id)};
+      // const result = await reviewsCollection.findOne(query)
+      // res.send(result);
+    // });
+
+    //update review
+    app.patch("/update-reviews/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedReview = req.body;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          ...updatedReview,
+        },
+      };
+      const result = await reviewsCollection.updateOne(query, updateDoc);
+    });
+
+    app.delete("/delete-reviews/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await reviewsCollection.deleteOne(query);
+      res.send(result);
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

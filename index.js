@@ -135,6 +135,13 @@ async function run() {
       res.send(result);
     });
 
+    //post scholarship
+    app.post("/scholarships", async (req, res) => {
+      const scholarship = req.body;
+      const result = await scholarshipsCollection.insertOne(scholarship);
+      res.send(result);
+    });
+
     //get top scholarship
     app.get("/top-scholarships", async (req, res) => {
       const result = await scholarshipsCollection
@@ -153,6 +160,20 @@ async function run() {
     //get all scholarships
     app.get("/scholarships", async (req, res) => {
       const result = await scholarshipsCollection.find().toArray();
+      res.send(result);
+    });
+
+    //update scholarship by  id
+    app.patch("/update-scholarships/:id", async (req, res) => {
+      const id = req.params.id;
+      const updateInfo = req.body;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          ...updateInfo,
+        },
+      };
+      const result = await scholarshipsCollection.updateOne(query, updateDoc);
       res.send(result);
     });
 
@@ -179,6 +200,14 @@ async function run() {
       res.send(result);
     });
 
+    //delete scholarship by id
+    app.delete("/scholarship/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id)}
+      const result = await scholarshipsCollection.deleteOne(query);
+      res.send(result);
+    })
+
     //save applied scholarship
     app.post("/applied-scholarships", async (req, res) => {
       const appliedInfo = req.body;
@@ -200,11 +229,19 @@ async function run() {
       res.send(result);
     });
 
+    //get my applied scholarship by email
+    app.get("/my-applied-scholarships/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await appliedScholarshipCollection.findOne(query);
+      res.send(result);
+    });
+
     //update applied Scholarship
     app.patch("/applied-scholarships/:id", async (req, res) => {
       const id = req.params.id;
       const editedInfo = req.body;
-      const query = { _id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
           ...editedInfo,
@@ -241,10 +278,18 @@ async function run() {
     //get review by id
     app.get("/reviews/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { university_id: id};
+      const query = { university_id: id };
       const result = await reviewsCollection.find(query).toArray();
       res.send(result);
-    })
+    });
+
+    //get all reviews by email
+    app.get("/my-reviews/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { reviewerEmail: email };
+      const result = await reviewsCollection.find(query).toArray();
+      res.send(result);
+    });
 
     //update review
     app.patch("/update-reviews/:id", async (req, res) => {
@@ -257,6 +302,7 @@ async function run() {
         },
       };
       const result = await reviewsCollection.updateOne(query, updateDoc);
+      res.send(result);
     });
 
     app.delete("/delete-reviews/:id", async (req, res) => {
@@ -264,7 +310,7 @@ async function run() {
       const query = { _id: new ObjectId(id) };
       const result = await reviewsCollection.deleteOne(query);
       res.send(result);
-    })
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

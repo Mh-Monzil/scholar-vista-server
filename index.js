@@ -135,6 +135,27 @@ async function run() {
       res.send(result);
     });
 
+    //update user role with email
+    app.patch("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const updatedRole = req.body;
+      const query = { email: email}
+      const updateDoc = {
+        $set: {
+          ...updatedRole
+        }
+      }
+      const result = await usersCollection.updateOne(query, updateDoc);
+      res.send(result);
+    })
+
+    app.delete("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email}
+      const result = await usersCollection.deleteOne(query);
+      res.send(result);
+    })
+
     //post scholarship
     app.post("/scholarships", async (req, res) => {
       const scholarship = req.body;
@@ -233,7 +254,7 @@ async function run() {
     app.get("/my-applied-scholarships/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
-      const result = await appliedScholarshipCollection.findOne(query);
+      const result = await appliedScholarshipCollection.find(query).toArray();
       res.send(result);
     });
 

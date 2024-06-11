@@ -186,12 +186,13 @@ async function run() {
       res.send(result);
     });
 
-    //get applied scholarships
+    //get all applied scholarships
     app.get("/applied-scholarships", async (req, res) => {
       const result = await appliedScholarshipCollection.find().toArray();
       res.send(result);
     });
 
+    //get applied scholarship by id
     app.get("/applied-scholarships/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -200,9 +201,10 @@ async function run() {
     });
 
     //update applied Scholarship
-    app.patch("/applied-scholarships", async (req, res) => {
+    app.patch("/applied-scholarships/:id", async (req, res) => {
+      const id = req.params.id;
       const editedInfo = req.body;
-      const query = { scholarship_id: editedInfo.scholarship_id };
+      const query = { _id: new ObjectId(id)};
       const updateDoc = {
         $set: {
           ...editedInfo,

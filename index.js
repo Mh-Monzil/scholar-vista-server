@@ -156,6 +156,16 @@ async function run() {
       res.send(result);
     })
 
+    //sort users by role
+    app.get("/sort-users/:role", async (req, res) => {
+      const role = req.params.role;
+      const query = { role: role }
+      const sortedRole = await usersCollection.find(query).toArray();
+      const others = await usersCollection.find({role: {$ne: role}}).toArray();
+      const result = sortedRole.concat(others);
+      res.send(result);
+    })
+
     //post scholarship
     app.post("/scholarships", async (req, res) => {
       const scholarship = req.body;

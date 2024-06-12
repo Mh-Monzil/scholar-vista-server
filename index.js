@@ -24,6 +24,7 @@ app.use(cookieParser());
 
 // Verify Token Middleware
 const verifyToken = async (req, res, next) => {
+  const token = req.cookies?.token;
   console.log(token, "token");
   if (!token) {
     return res.status(401).send({ message: "unauthorized access" });
@@ -68,7 +69,7 @@ async function run() {
       const user = req.user;
       const query = { email: user?.email };
       const result = await usersCollection.findOne(query);
-      
+      console.log(result.role);
       if (!result || result?.role !== "admin")
         return res.status(401).send({ message: "unauthorized access!!" });
 
@@ -80,7 +81,7 @@ async function run() {
       const user = req.user;
       const query = { email: user?.email };
       const result = await usersCollection.findOne(query);
-      
+      console.log(result, "common");
       if (!result || result?.role !== "admin" || result?.role !== "moderator") {
         return res.status(401).send({ message: "unauthorized access!!" });
       }
@@ -286,7 +287,6 @@ async function run() {
     app.get(
       "/applied-scholarships",
       verifyToken,
-      // verifyCommon,
       async (req, res) => {
         const result = await appliedScholarshipCollection.find().toArray();
         res.send(result);

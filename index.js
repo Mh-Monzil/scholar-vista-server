@@ -9,7 +9,11 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 const corsOptions = {
-  origin: ["http://localhost:5173", "http://localhost:5174"],
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://my-project-2f30d.web.app",
+  ],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -20,12 +24,11 @@ app.use(cookieParser());
 
 // Verify Token Middleware
 const verifyToken = async (req, res, next) => {
-  const token = req.cookies?.token;
+  console.log(token, "token");
   if (!token) {
     return res.status(401).send({ message: "unauthorized access" });
   }
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-    console.log(decoded.email,"decoded");
     if (err) {
       console.log(err);
       return res.status(401).send({ message: "unauthorized access" });
@@ -49,7 +52,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const usersCollection = client.db("scholarDB").collection("users");
     const scholarshipsCollection = client
@@ -60,33 +63,30 @@ async function run() {
       .db("scholarDB")
       .collection("appliedScholarships");
 
+    // verify admin middleware
+    const verifyAdmin = async (req, res, next) => {
+      const user = req.user;
+      const query = { email: user?.email };
+      const result = await usersCollection.findOne(query);
+      
+      if (!result || result?.role !== "admin")
+        return res.status(401).send({ message: "unauthorized access!!" });
 
-// verify admin middleware
-const verifyAdmin = async (req, res, next) => {
-  const user = req.user
-  const query = { email: user?.email }
-  const result = await usersCollection.findOne(query)
-  
-  if (!result || result?.role !== 'admin')
-    return res.status(401).send({ message: 'unauthorized access!!' })
+      next();
+    };
 
-  next()
-}
+    // verify host middleware
+    const verifyCommon = async (req, res, next) => {
+      const user = req.user;
+      const query = { email: user?.email };
+      const result = await usersCollection.findOne(query);
+      
+      if (!result || result?.role !== "admin" || result?.role !== "moderator") {
+        return res.status(401).send({ message: "unauthorized access!!" });
+      }
 
-// verify host middleware
-const verifyCommon = async (req, res, next) => {
-  const user = req.user
-  const query = { email: user?.email }
-  const result = await usersCollection.findOne(query)
-  
-  if (!result || result?.role !== 'admin' || result?.role !== 'moderator') {
-    return res.status(401).send({ message: 'unauthorized access!!' })
-  }
-
-  next()
-}
-
-
+      next();
+    };
 
     // auth related api
     app.post("/jwt", async (req, res) => {
@@ -150,7 +150,7 @@ const verifyCommon = async (req, res, next) => {
     });
 
     //get all user
-    app.get("/users",verifyToken, verifyAdmin, async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
@@ -164,7 +164,7 @@ const verifyCommon = async (req, res, next) => {
     });
 
     //update user role with email
-    app.patch("/users/:email",verifyToken, verifyAdmin, async (req, res) => {
+    app.patch("/users/:email", verifyToken, verifyAdmin, async (req, res) => {
       const email = req.params.email;
       const updatedRole = req.body;
       const query = { email: email };
@@ -178,7 +178,7 @@ const verifyCommon = async (req, res, next) => {
     });
 
     //delete user role with email
-    app.delete("/users/:email",verifyToken, verifyAdmin, async (req, res) => {
+    app.delete("/users/:email", verifyToken, verifyAdmin, async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
       const result = await usersCollection.deleteOne(query);
@@ -198,7 +198,7 @@ const verifyCommon = async (req, res, next) => {
     });
 
     //post scholarship
-    app.post("/scholarships",verifyToken, verifyCommon, async (req, res) => {
+    app.post("/scholarships", verifyToken, verifyCommon, async (req, res) => {
       const scholarship = req.body;
       const result = await scholarshipsCollection.insertOne(scholarship);
       res.send(result);
@@ -226,7 +226,7 @@ const verifyCommon = async (req, res, next) => {
     });
 
     //update scholarship by  id
-    app.patch("/update-scholarships/:id", verifyToken, verifyCommon, async (req, res) => {
+    app.patch("/update-scholarships/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const updateInfo = req.body;
       const query = { _id: new ObjectId(id) };
@@ -263,12 +263,17 @@ const verifyCommon = async (req, res, next) => {
     });
 
     //delete scholarship by id
-    app.delete("/scholarship/:id", verifyToken, verifyCommon, async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await scholarshipsCollection.deleteOne(query);
-      res.send(result);
-    });
+    app.delete(
+      "/scholarship/:id",
+      verifyToken,
+      verifyCommon,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await scholarshipsCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
 
     //save applied scholarship
     app.post("/applied-scholarships", verifyToken, async (req, res) => {
@@ -278,18 +283,28 @@ const verifyCommon = async (req, res, next) => {
     });
 
     //get all applied scholarships
-    app.get("/applied-scholarships", verifyToken, verifyCommon, async (req, res) => {
-      const result = await appliedScholarshipCollection.find().toArray();
-      res.send(result);
-    });
+    app.get(
+      "/applied-scholarships",
+      verifyToken,
+      // verifyCommon,
+      async (req, res) => {
+        const result = await appliedScholarshipCollection.find().toArray();
+        res.send(result);
+      }
+    );
 
     //get applied scholarship by id
-    app.get("/applied-scholarships/:id", verifyToken, verifyCommon, async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await appliedScholarshipCollection.findOne(query);
-      res.send(result);
-    });
+    app.get(
+      "/applied-scholarships/:id",
+      // verifyToken,
+      // verifyCommon,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await appliedScholarshipCollection.findOne(query);
+        res.send(result);
+      }
+    );
 
     //get my applied scholarship by email
     app.get("/my-applied-scholarships/:email", async (req, res) => {
@@ -308,29 +323,39 @@ const verifyCommon = async (req, res, next) => {
     });
 
     //update applied Scholarship
-    app.patch("/applied-scholarships/:id", verifyToken, verifyCommon, async (req, res) => {
-      const id = req.params.id;
-      const editedInfo = req.body;
-      const query = { _id: new ObjectId(id) };
-      const updateDoc = {
-        $set: {
-          ...editedInfo,
-        },
-      };
-      const result = await appliedScholarshipCollection.updateOne(
-        query,
-        updateDoc
-      );
-      res.send(result);
-    });
+    app.patch(
+      "/applied-scholarships/:id",
+      verifyToken,
+      verifyCommon,
+      async (req, res) => {
+        const id = req.params.id;
+        const editedInfo = req.body;
+        const query = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: {
+            ...editedInfo,
+          },
+        };
+        const result = await appliedScholarshipCollection.updateOne(
+          query,
+          updateDoc
+        );
+        res.send(result);
+      }
+    );
 
     // delete applied scholarship
-    app.delete("/applied-scholarship/:id", verifyToken, verifyCommon, async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await appliedScholarshipCollection.deleteOne(query);
-      res.send(result);
-    });
+    app.delete(
+      "/applied-scholarship/:id",
+      verifyToken,
+      verifyCommon,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await appliedScholarshipCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
 
     //save review
     app.post("/reviews", verifyToken, async (req, res) => {
@@ -382,10 +407,8 @@ const verifyCommon = async (req, res, next) => {
       res.send(result);
     });
 
-  
-
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
